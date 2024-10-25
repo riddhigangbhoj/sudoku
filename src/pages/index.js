@@ -67,9 +67,11 @@ const generateSudoku = (difficulty) => {
 export default function SudokuGame() {
   const [board, setBoard] = useState([]);
   const [solution, setSolution] = useState([]);
-  const [difficulty, setDifficulty] = useState(20);
+  const [initialBoard, setInitialBoard] = useState([]);
+  const [difficulty, setDifficulty] = useState(50);
   const [selectedCell, setSelectedCell] = useState(null);
   const [incorrectCells, setIncorrectCells] = useState(new Set());
+  const [highlightedNumber, setHighlightedNumber] = useState(null);
 
   useEffect(() => {
     newGame();
@@ -79,75 +81,161 @@ export default function SudokuGame() {
     const { board: newBoard, solution: newSolution } = generateSudoku(difficulty);
     setBoard(newBoard);
     setSolution(newSolution);
+    setInitialBoard(newBoard.map(row => [...row]));
     setSelectedCell(null);
     setIncorrectCells(new Set());
+    setHighlightedNumber(null);
   }
 
   const handleCellClick = (row, col) => {
-    setSelectedCell([row, col]);
+    if (initialBoard[row][col] === 0) {
+      setSelectedCell([row, col]);
+    }
+    setHighlightedNumber(board[row][col] !== 0 ? board[row][col] : null);
   }
 
   const handleNumberInput = (num) => {
     if (selectedCell) {
       const [row, col] = selectedCell;
-      const newBoard = [...board];
-      newBoard[row][col] = num;
-      setBoard(newBoard);
+      if (initialBoard[row][col] === 0) {
+        const newBoard = [...board];
+        newBoard[row][col] = num;
+        setBoard(newBoard);
 
-      const cellKey = `${row}-${col}`;
-      const newIncorrectCells = new Set(incorrectCells);
-      if (num !== solution[row][col]) {
-        newIncorrectCells.add(cellKey);
-      } else {
-        newIncorrectCells.delete(cellKey);
+        const cellKey = `${row}-${col}`;
+        const newIncorrectCells = new Set(incorrectCells);
+        if (num !== solution[row][col]) {
+          newIncorrectCells.add(cellKey);
+        } else {
+          newIncorrectCells.delete(cellKey);
+        }
+        setIncorrectCells(newIncorrectCells);
+        setHighlightedNumber(num);
       }
-      setIncorrectCells(newIncorrectCells);
+    }
+  }
+
+  const handleErase = () => {
+    if (selectedCell) {
+      const [row, col] = selectedCell;
+      if (initialBoard[row][col] === 0) {
+        const newBoard = [...board];
+        newBoard[row][col] = 0;
+        setBoard(newBoard);
+
+        const cellKey = `${row}-${col}`;
+        const newIncorrectCells = new Set(incorrectCells);
+        newIncorrectCells.delete(cellKey);
+        setIncorrectCells(newIncorrectCells);
+        setHighlightedNumber(null);
+      }
     }
   }
 
   const getHint = () => {
     if (selectedCell) {
       const [row, col] = selectedCell;
-      const newBoard = [...board];
-      newBoard[row][col] = solution[row][col];
-      setBoard(newBoard);
-      const newIncorrectCells = new Set(incorrectCells);
-      newIncorrectCells.delete(`${row}-${col}`);
-      setIncorrectCells(newIncorrectCells);
+      if (initialBoard[row][col] === 0) {
+        const newBoard = [...board];
+        newBoard[row][col] = solution[row][col];
+        setBoard(newBoard);
+        setHighlightedNumber(solution[row][col]);
+
+        const cellKey = `${row}-${col}`;
+        const newIncorrectCells = new Set(incorrectCells);
+        newIncorrectCells.delete(cellKey);
+        setIncorrectCells(newIncorrectCells);
+      }
+    }
+  }
+
+  const getCellBackgroundColor = (rowIndex, colIndex) => {
+    const boxRow = Math.floor(rowIndex / 3);
+    const boxCol = Math.floor(colIndex / 3);
+    const isAlternateBox = (boxRow + boxCol) % 2 === 0;
+    
+    if (board[rowIndex][colIndex] === highlightedNumber) {
+      return '#ffff99';  // Highlight color for matching numbers
+    } else if (selectedCell && selectedCell[0] === rowIndex && selectedCell[1] === colIndex) {
+      return '#e0e0e0';  // Selected cell color
+    } else if (isAlternateBox) {
+      return '#e6f3ff';  // Light blue for alternate 3x3 boxes
+    } else {
+      return '#fff';  // White for other cells
+    }
+  }
+
+  const getCellTextColor = (rowIndex, colIndex) => {
+    if (initialBoard[rowIndex][colIndex] !== 0) {
+      return 'black';  // Initial numbers are black
+    } else if (incorrectCells.has(`${rowIndex}-${colIndex}`)) {
+      return 'red';  // Incorrect numbers are red
+    } else {
+      return 'blue';  // User-entered correct numbers are blue
     }
   }
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '500px', margin: '0 auto', padding: '20px' }}>
-      <h1 style={{ textAlign: 'center' }}>Sudoku Game</h1>
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between' }}>
+    <div style={{ 
+      fontFamily: 'Arial, sans-serif', 
+      maxWidth: '500px', 
+      margin: '0 auto', 
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '30px'
+    }}>
+      <h1 style={{ 
+        textAlign: 'center',
+        fontSize: '2.5rem',
+        color: '#333',
+        marginBottom: '20px'
+      }}>Sudoku Game</h1>
+      
+      <div style={{ 
+        width: '100%',
+        display: 'flex', 
+        justifyContent: 'space-between',
+        marginBottom: '20px'
+      }}>
         <select 
           value={difficulty} 
           onChange={(e) => setDifficulty(Number(e.target.value))}
-          style={{ padding: '5px' }}
+          style={{ padding: '8px', fontSize: '1rem' }}
         >
-          <option value={20}>Easy</option>
+          <option value={50}>Easy</option>
           <option value={35}>Medium</option>
-          <option value={50}>Hard</option>
+          <option value={20}>Hard</option>
         </select>
-        <button onClick={newGame} style={{ padding: '5px 10px' }}>New Game</button>
-        <button onClick={getHint} style={{ padding: '5px 10px' }}>Get Hint</button>
+        <button onClick={newGame} style={{ padding: '8px 15px', fontSize: '1rem' }}>New Game</button>
+        <button onClick={getHint} style={{ padding: '8px 15px', fontSize: '1rem' }}>Get Hint</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '1px', backgroundColor: '#000', padding: '1px' }}>
+      
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(9, 1fr)', 
+        gap: '1px', 
+        backgroundColor: '#000', 
+        padding: '1px',
+        boxShadow: '0 0 10px rgba(0,0,0,0.1)'
+      }}>
         {board.map((row, rowIndex) => 
           row.map((cell, colIndex) => (
             <div 
               key={`${rowIndex}-${colIndex}`}
               onClick={() => handleCellClick(rowIndex, colIndex)}
               style={{
-                backgroundColor: selectedCell && selectedCell[0] === rowIndex && selectedCell[1] === colIndex ? '#e0e0e0' : '#fff',
+                backgroundColor: getCellBackgroundColor(rowIndex, colIndex),
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                height: '40px',
+                height: '45px',
+                width: '45px',
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                color: incorrectCells.has(`${rowIndex}-${colIndex}`) ? 'red' : 'black'
+                fontSize: '1.2rem',
+                color: getCellTextColor(rowIndex, colIndex)
               }}
             >
               {cell !== 0 ? cell : ''}
@@ -155,16 +243,44 @@ export default function SudokuGame() {
           ))
         )}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+      
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(5, 1fr)', 
+        gap: '10px',
+        marginTop: '20px',
+        width: '100%'
+      }}>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
           <button 
             key={num} 
             onClick={() => handleNumberInput(num)}
-            style={{ margin: '0 5px', padding: '5px 10px' }}
+            style={{ 
+              padding: '10px 15px', 
+              fontSize: '1.1rem',
+              borderRadius: '5px',
+              border: '1px solid #ccc',
+              background: '#f0f0f0',
+              cursor: 'pointer'
+            }}
           >
             {num}
           </button>
         ))}
+        <button 
+          onClick={handleErase}
+          style={{ 
+            padding: '10px 15px', 
+            fontSize: '1.1rem',
+            borderRadius: '5px',
+            border: '1px solid #ccc',
+            background: '#ff9999', // Light red background for the eraser
+            cursor: 'pointer',
+            gridColumn: 'span 2' // Make the eraser button span two columns
+          }}
+        >
+          Erase
+        </button>
       </div>
     </div>
   );
